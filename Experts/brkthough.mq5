@@ -7,6 +7,7 @@
 #property link      "kayc.com"
 #property version   "1.00"
 
+
 #include <Trade\Trade.mqh>
 #include <brk.mqh>
 
