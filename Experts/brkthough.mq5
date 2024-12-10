@@ -1,6 +1,6 @@
 //+------------------------------------------------------------------+
 //|                                                    brkthrough.mq5 |
-//|                                        Copyright 2024, kayc Ltd. |
+//|                                        Copyright 2024, kayc Ltd.by vxcode. |
 //|                                                         kayc.com |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2024, kayc Ltd."
