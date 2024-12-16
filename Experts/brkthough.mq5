@@ -52,7 +52,7 @@ input double BB_Deviation = 2.0;       // Bollinger Bands deviation
 //+------------------------------------------------------------------+
 input group "======  vol spike Settings ====";
 input int barsToCheck = 20;          // Evaluate the last 20 bars
-input double spikeThreshold = 1.3;   // 50% increase above average volume ~ 1.5
+input double spikeThreshold = 1.37;   // 50% increase above average volume ~ 1.4-1.35 decrease/increase by 0.01
 //+------------------------------------------------------------------+
 
 
@@ -306,45 +306,56 @@ void OnTradeTransaction(
                  deal.Ticket(trans.deal);
                  
                  if(deal.Entry() == DEAL_ENTRY_IN){
-                     if(deal.DealType() == DEAL_TYPE_BUY){
-                        if(deal.Comment() == "E1"){
-                             Eis[1]=1;closeall(2);
-                             EEE[1]=posii.Ticket();entryEPosi[1]=1;clearPending(1);clearPending(2);Print("cleared by 1 EEE[1]::",EEE[1]);
-                        }else if(deal.Comment() == "E2"){// && isFirst == 1){
-                                isFirst=0;Eis[2]=1;
-                                EEE[2]=posii.Ticket();entryEPosi[2]=1;clearPending(1);clearPending(2);Print("cleared by 1 EEE[2]:: ",EEE[2]);
-                        }
-                     //Print(" dealin :: B",deal.Ticket()," dealcomment:",deal.Comment());
-                     }else if(deal.DealType() == DEAL_TYPE_SELL){
-                      if(deal.Comment() == "E1"){
-                              Eis[1]=2;closeall(1);
-                              EEE[1]=posii.Ticket();entryEPosi[1]=1;clearPending(1);clearPending(2);Print("cleared by 2 EEE[1]::",EEE[1]);
-                       }else if(deal.Comment() == "E2"){// && isFirst == 1){
-                              isFirst=0; Eis[2]=2;
-                               EEE[2]=posii.Ticket();entryEPosi[2]=1;clearPending(1);clearPending(2);Print("cleared by 2 EEE[2]::",EEE[2]);
-                       }
-                     }
+                 
+                     for(int in=0;in<10;in++){
+                        
+                        if(deal.Comment() == (string)("E"+in)){ 
+                            if(in==2){isFirst=0;}
+                                  
+                           if(deal.DealType() == DEAL_TYPE_BUY){
+                           Eis[in]=1; if(in == 1) closeall(2);
+                           }else if(deal.DealType() == DEAL_TYPE_SELL){
+                           Eis[in]=2; if(in == 1) closeall(1);
+                           }
+                           
+                            EEE[in]=posii.Ticket();entryEPosi[in]=1;clearPending(in);clearPending(in+1);Print("cleared by 1 EEE[",in,"]::",EEE[in]);
+                          
+                            Elog[in]+=1;
+                        }                    
                      //--
-                       if(deal.Comment() == "E1"){Elog[1]+=1;
-                       }else if(deal.Comment() == "E2"){Elog[2]+=1;
-                       }else if(deal.Comment() == "E3"){Elog[3]+=1;
-                       }
+                    }
                      //Print(" dealin :: S dealcomment: ",deal.Comment()," posicomment: ",posii.Comment());
                 
                  }else if(deal.Entry() == DEAL_ENTRY_OUT){
+                 
+                            lastDealP=deal.Profit();  
                  
                      if(deal.DealType() == DEAL_TYPE_BUY){
                            chgDealP=2; 
                      }else if(deal.DealType() == DEAL_TYPE_SELL){
                            chgDealP=1; 
                      }
-                            lastDealP=deal.Profit();                          
+                     
+                     for(int in=0; in < 10; in++){
+                        if(EEE[in] > 0){
+                          if(!PositionSelectByTicket(EEE[in])){
+                              if((deal.DealType() == DEAL_TYPE_BUY && Eis[in] == 2) || (deal.DealType() == DEAL_TYPE_SELL && Eis[in] == 1)){
+                              
+                                  if(lastDealP < 0){Elog[10+in]+=1;}else if(lastDealP > 0){Elog[20+in]+=1;}
+                                   if((lastDealP < 0 || lastDealP > (minTP+50*Lots)) && in == 2){isFirst=1;}
+                                  if(in == 1){closeall(Eis[in]);}
+                                  EEE[in]=0;entryEPosi[in]=0;Etrail[in]=0;Eis[in]=0;
+                             }
+                          }
+                        }
+                     }
+                                             
                      initialBal=initialBal+deal.Profit();
                   //Print(" dealout :: profit: $",deal.Profit()," comment: ",deal.Comment()," deal ticket :",HistoryDealGetInteger(trans.deal,DEAL_TICKET)," posii.Ticket() ",posii.Ticket()," comment4: ",posii.Comment()," coment5: ",request.comment,"");
                  }
                   
                     //pending orders
-                    for (int pos_0 = 0; pos_0 < OrdersTotal(); pos_0++) {
+                   /* for (int pos_0 = 0; pos_0 < OrdersTotal(); pos_0++) {
                      ulong orderTicket = OrderGetTicket(pos_0);
                      //trade.OrderDelete(orderTicket);
                      //trade.OrderModify()
@@ -355,7 +366,7 @@ void OnTradeTransaction(
                            }
                         }
                      
-                    }
+                    }*/
               } 
       }
       
@@ -371,7 +382,7 @@ void OnTradeTransaction(
 //| Expert tick function                                             |
 //+------------------------------------------------------------------+
 void OnTick()
-  {
+{
 
 //---
    if(initialBal <= 0 || AccountInfoDouble(ACCOUNT_EQUITY) < initialBal) {OnDeinit(55555);}
@@ -443,7 +454,7 @@ void OnTick()
         //voladj
         for(int ur=1;ur<10;ur++){
            
-            if(ur >= 4) continue;
+            //if(ur >= 5) continue;
            
            if(EEE[ur] > 0 && Eis[ur] == 1 && entryEPosi[ur] > 3){double entri = lolo(0,7)-40*point; adj_sl(EEE[ur],3,entri); 
            }else if(EEE[ur] > 0 && Eis[ur] == 2 && entryEPosi[ur] > 3){double entri = hihi(0,9)+65*point; adj_sl(EEE[ur],3,entri); 
@@ -548,9 +559,10 @@ void OnTick()
                   }
                }
             }else{
-               if(chgDealP == Eis[1]){if(lastDealP < 0){Elog[11]+=1;}else if(lastDealP > 0){Elog[21]+=1;}}
+               //if(chgDealP == Eis[1]){if(lastDealP < 0){Elog[11]+=1;}else if(lastDealP > 0){Elog[21]+=1;}}
                chgDealP=0;lastDealP=0;
-               EEE[1]=0;entryEPosi[1]=0;Etrail[1]=0;Eis[1]=0;/*if(Eis[1] == 1){closeall(2);}else if(Eis[1] == 2){closeall(1);Print("i closed all 3");}*/Print("cleared EEE[1]");}
+               //EEE[1]=0;entryEPosi[1]=0;Etrail[1]=0;Eis[1]=0;/*if(Eis[1] == 1){closeall(2);}else if(Eis[1] == 2){closeall(1);Print("i closed all 3");}*/Print("cleared EEE[1]");
+               }
          }
          
          
@@ -592,10 +604,12 @@ void OnTick()
                }}*/
             }else{
             if(chgDealP == Eis[2]){
-               if((lastDealP < 0 || lastDealP > (minTP+50*Lots))){isFirst=1;}
-               if(lastDealP < 0){Elog[12]+=1;}else if(lastDealP > 0){Elog[22]+=1;}}    
+              
+              // if(lastDealP < 0){Elog[12]+=1;}else if(lastDealP > 0){Elog[22]+=1;}
+              }    
                 chgDealP=0;lastDealP=0;
-               EEE[2]=0;entryEPosi[2]=0;Etrail[2]=0;/*if(Eis[2] == 1){closeall(1);}else if(Eis[2] == 2){closeall(2);Print("i closed all 4");}*/Eis[2]=0;Print("cleared EEE[2]");}
+               //EEE[2]=0;entryEPosi[2]=0;Etrail[2]=0;/*if(Eis[2] == 1){closeall(1);}else if(Eis[2] == 2){closeall(2);Print("i closed all 4");}*/Eis[2]=0;Print("cleared EEE[2]");
+               }
          }
         /* if(EEE[3] > 0){
             if(PositionSelectByTicket(EEE[3])){
@@ -621,9 +635,9 @@ void OnTick()
       //if(EEE[2] > 0 && Eis[2] == 2 && (low(0)+30*point) < lolo(1,entryEPosi[2]+5)){adj_sl(EEE[2],2);if(Etrail[2] > 0){adj_sl(EEE[2],9);}
       //}else if(EEE[2] > 0 && Eis[2] == 1 && (high(0)-30*point) > hihi(1,entryEPosi[2]+5)){adj_sl(EEE[2],2);if(Etrail[2] > 0){adj_sl(EEE[2],9);}}
       
-      if(stopline > 0.0 && activeTrend == 1 && Bid < stopline){if(posi1Chg >0 && posi1Chg <6){closeall(2);Print("i closed all 6");}else{closeall(1);}
-      stopline=0.0;
-      }else if(stopline > 0.0 && activeTrend == 2 && Ask > stopline){if(posi1Chg >0 && posi1Chg <6){closeall(1);Print("i closed all 7");}else{closeall(2);}stopline=0.0;}
+     // if(stopline > 0.0 && activeTrend == 1 && Bid < stopline){if(posi1Chg >0 && posi1Chg <6){closeall(2);Print("i closed all 6");}else{closeall(1);}
+     stopline=0.0;
+      //}else if(stopline > 0.0 && activeTrend == 2 && Ask > stopline){if(posi1Chg >0 && posi1Chg <6){closeall(1);Print("i closed all 7");}else{closeall(2);}stopline=0.0;}
       
       
       
@@ -660,7 +674,7 @@ void OnTick()
       if(Epending[1] > 0 && pendingEPosi[1] > 0){pendingEPosi[1]+=1;}
       if(Epending[2] > 0 && pendingEPosi[2] > 0){pendingEPosi[2]+=1;}
       if(Epending[3] > 0 && pendingEPosi[3] > 0){pendingEPosi[3]+=1;}
-      
+     
       
       if(Epending[3] > 0 && pendingEPosi[3] < 7) adj_stop(Epending[3]);  
        
@@ -712,8 +726,8 @@ void OnTick()
                      //open(1) < ma_vall(1) &&
                      //stopline=0.0;newbox=2;posi1Chg=1;needbrk=bagVal[51+op];if(needbrk > lolo(1,bagPE[2])){needbrk=lolo(1,bagPE[2]);}if(EEE[2]>0){makevoid=true;}clearPending(1);clearPending(2);
                      //if(noentry != 2 && (newbox == 1  && activeTrend == 2 && ((open(1) < close(1) && ((close(1)-open(1)) > 30*point)  && bagVal[51+opp] > point  && (( (high(1)-15*point) > bagVal[31+op] && (bagVal[51+op]-10*point) < bagVal[51+opp]) || ((high(1)-15*point) > bagVal[31+opp] && bagVal[51+op] > bagVal[51+opp] &&  bagVal[31+op] < bagVal[31+opp])))))){noentry=2;}
-                    if(newbox >= 1 && newbox < 3  && activeTrend == 2 && open(1) < close(1) && ((close(1)-open(1)) > 30*point)  && lastboxdown2 > point  && (( (close(1)-15*point) > lastboxup && (lastboxdown-10*point) < lastboxdown2) || ((close(1)-15*point) > lastboxup2 && lastboxdown > lastboxdown2 &&  lastboxup < lastboxup2))){
-                    newbox=3;clearPending(1);clearPending(2);line(0,"s : 1 :: "+time(0,PERIOD_CURRENT),time(0,PERIOD_CURRENT),1,4,2,PERIOD_CURRENT);
+                    if(newbox >= 1 && newbox < 3 && usedbox==0  && activeTrend == 2 && open(1) < close(1) && ((close(1)-open(1)) > 30*point)  && lastboxdown2 > point  && (( (close(1)-15*point) > lastboxup && (lastboxdown-10*point) < lastboxdown2) || ((close(1)-15*point) > lastboxup2 && lastboxdown > lastboxdown2 &&  lastboxup < lastboxup2))){
+                    newbox=3;clearPending(1);clearPending(2);posi1Chg=1;line(0,"s : 1 :: "+time(0,PERIOD_CURRENT),time(0,PERIOD_CURRENT),1,4,2,PERIOD_CURRENT);
                     }
                      if((newbox == 1 || newbox == 3) && activeTrend == 2 && ((close(1) > lastboxup && lastboxup > ma_vall(1)))){// || 
                     noentry =0;isFirst=1; newbox = 2;usedbox=1;firsttbox=2; posiLine=1;activeTrend=1;clearPending(1);clearPending(2);line(0,"new trends : 1 :: "+time(0,PERIOD_CURRENT),time(0,PERIOD_CURRENT),1,2,2,PERIOD_CURRENT);}
@@ -722,8 +736,8 @@ void OnTick()
                      //open(1) > ma_vall(1) && 
                     // stopline=0.0;newbox=2;posi2Chg=1;needbrk=bagVal[21+op];if(needbrk < hihi(1,bagPE[12])){needbrk=hihi(1,bagPE[12]);}if(EEE[2]>0){makevoid=true;}clearPending(1);clearPending(2);
                    // if(noentry !=1 &&  newbox == 1 && activeTrend == 1 && ((open(1) > close(1) && ((open(1)-close(1)) > 30*point) &&  bagVal[21+opp] > point && (((low(1)+15*point) < bagVal[41+op] && (bagVal[21+op]+10*point) > bagVal[21+opp]) || ((low(1)+15*point) < bagVal[41+opp] && bagVal[21+op] < bagVal[21+opp] && bagVal[41+op] > bagVal[41+opp]))))){noentry=1;}
-                 if(newbox >= 1 && newbox < 3  && activeTrend == 1 && (open(1) > close(1) && ((open(1)-close(1)) > 30*point) &&  lastboxup2 > point && (((close(1)+15*point) < lastboxdown && (lastboxup+10*point) > lastboxup2) || ((close(1)+15*point) < lastboxdown2 && lastboxup < lastboxup2 && lastboxdown > lastboxdown2)))){
-                    newbox=3;clearPending(1);clearPending(2);line(0,"s : 2 :: "+time(0,PERIOD_CURRENT),time(0,PERIOD_CURRENT),1,4,2,PERIOD_CURRENT);
+                 if(newbox >= 1 && newbox < 3  && usedbox == 0 && activeTrend == 1 && (open(1) > close(1) && ((open(1)-close(1)) > 30*point) &&  lastboxup2 > point && (((close(1)+15*point) < lastboxdown && (lastboxup+10*point) > lastboxup2) || ((close(1)+15*point) < lastboxdown2 && lastboxup < lastboxup2 && lastboxdown > lastboxdown2)))){
+                    newbox=3;clearPending(1);clearPending(2);posi2Chg=1;line(0,"s : 2 :: "+time(0,PERIOD_CURRENT),time(0,PERIOD_CURRENT),1,4,2,PERIOD_CURRENT);
                     }
                   if((newbox == 1 || newbox == 3) && activeTrend == 1 && ((close(1) < lastboxdown && lastboxdown < ma_vall(1)))){
                     noentry =0;isFirst=1;newbox = 2;usedbox=1;firsttbox=1;   posiLine=1;activeTrend=2;clearPending(1);clearPending(2);line(0,"new trends : 2 :: "+time(0,PERIOD_CURRENT),time(0,PERIOD_CURRENT),1,2,2,PERIOD_CURRENT);}
@@ -731,7 +745,16 @@ void OnTick()
                   break;
          }
          
-      
+         
+         //
+         if(lastboxdown <  close(2) && activeTrend == 2 && (lastboxdown+((lastboxup-lastboxdown)*0.35)) > close(1) && open(1) > close(1) && (Epending[1] > 0 || Epending[3] > 0)){clearPending(1);clearPending(3);Print("iclea pending 1&3");
+         }else if(lastboxup >  close(2) && activeTrend == 1 && (lastboxup-((lastboxup-lastboxdown)*0.35)) < close(1) && open(1) < close(1) && (Epending[1] > 0 || Epending[3] > 0)){clearPending(1);clearPending(3);Print("iclea pending 1&3");
+         }
+         
+         
+         if(Epending[1] > 0 && bag[2]==1 && activeTrend == 2){clearPending(1);
+         }else if(Epending[1] > 0 && bag[12]==1 && activeTrend == 1){clearPending(1);
+         }
          //--
          //if(Epending[1] > 0 && pendingPosi > 1) adj_stop(Epending[1]);
          //if(EEE[1] > 0 && entryPosi > 1) adj_sl(EEE[1],1);//start adj after 2candle from entry.
@@ -995,26 +1018,27 @@ void OnTick()
            
            expiration = TimeCurrent()+ExpireSec*6;
             double per50=(lastboxup-lastboxdown)*0.5;
-      if(bagStat[12] < 3 && activeTrend == 2 && close(1) > open(1) && close(1) > lastboxdown && posi2Chg < 9 && posi2Chg > 1){//&& ((high(1) > (lastboxup-per50) && activeTrend == 2)
+      if(bagStat[12] < 3 && activeTrend == 1 && close(1) > open(1) && close(1) > lastboxdown && posi2Chg < 9 && posi2Chg > 1){//&& ((high(1) > (lastboxup-per50) && activeTrend == 2)
       bagStat[12] = 3;
           double entry=NormalizeDouble(lolo(1,posi2Chg),_Digits),//Bid-900*point
-                   sl=0.0,//entry+((maxSL+80)*point),
+                   sl=hihi(1,posi2Chg),//0.0,//entry+((maxSL+80)*point),
                    tp=entry-(minTP*1.5)*point;//atr_val(1)*2.5;
-                   //if(EEE[1] < 1){//entry > ma_vall(1)
+                   if(EEE[1] < 1){//entry > ma_vall(1)
                    stopline=entry;
+                       entryType[2]=2;entryP[2]=entry;entrySL[2]=sl;entryTP[2]=tp;entryExp[2]=expiration;entryCom[2]="E3";}
                        block("sellStop EEE[3] "+string(entry+" "+time(1,PERIOD_CURRENT)),entry,entry,1,1,1,PERIOD_CURRENT,1,8);
-                       // entryType[2]=2;entryP[2]=entry;entrySL[2]=sl;entryTP[2]=tp;entryExp[2]=expiration;entryCom[2]="E3";
                       //  }else if(Eis[1] == 2){EEE[3]=EEE[1];EEE[1]=0;Eis[3]=Eis[1];Eis[1]=0;entryEPosi[3]=entryEPosi[1];entryEPosi[1]=0;adj_tp(EEE[3],1);}//clearPending(2);
                      // if(EEE[1] > 0){adj_tp(EEE[1],1);}
-      }else if(bagStat[2] < 3 && activeTrend == 1 && close(1) < open(1) && close(1) < lastboxup && posi1Chg < 9 && posi1Chg > 1){
+      }else if(bagStat[2] < 3 && activeTrend == 2 && close(1) < open(1) && close(1) < lastboxup && posi1Chg < 9 && posi1Chg > 1){
       bagStat[2] = 3;
          double entry=NormalizeDouble(hihi(1,posi1Chg) ,_Digits),//Ask+900*point
-                   sl=0.0,//entry-((maxSL+80)*point),
+                   sl=lolo(1,posi1Chg),//0.0,//entry-((maxSL+80)*point),
                    tp=entry+(minTP*1.5)*point;//atr_val(1)*2.5;
-                   // if(EEE[1] < 1){//entry < ma_vall(1)
+                    if(EEE[1] < 1){//entry < ma_vall(1)
                      stopline=entry;
+                       entryType[2]=1;entryP[2]=entry;entrySL[2]=sl;entryTP[2]=tp;entryExp[2]=expiration;entryCom[2]="E3";}
                        block("buyStop EEE[3] "+string(entry+" "+time(1,PERIOD_CURRENT)),entry,entry,1,1,1,PERIOD_CURRENT,1,8);
-                     // entryType[2]=1;entryP[2]=entry;entrySL[2]=sl;entryTP[2]=tp;entryExp[2]=expiration;entryCom[2]="E3";
+                     
                      // }else if(Eis[1] == 1){EEE[3]=EEE[1];EEE[1]=0;Eis[3]=Eis[1];Eis[1]=0;entryEPosi[3]=entryEPosi[1];entryEPosi[1]=0;adj_tp(EEE[3],1);}//clearPending(2);
                      //if(EEE[1] > 0){adj_tp(EEE[1],1);}
        }
@@ -1035,29 +1059,35 @@ void OnTick()
          if(activeTrend == 1 && (lastboxup > (lastboxup2-10*point) && lastboxdown <= lastboxup2)  && lastboxdown < (ma_vall(1)+20*point) && ( EEE[1] == 0 ||  EEE[1] > 0 && Eis[1] == 1)){
         usedbox=1;
             double entry=NormalizeDouble(lastboxup-per40,_Digits);
-             if(Ask < entry){entry = Ask-10*point;}
+            int byask =0;
+             if(Ask < entry){entry = Ask-10*point;byask=1;}
+             
              double sl=lastboxdown;//0.0;if(lastboxdown < ma_vall(1)){sl=lastboxdown;}
              if(entry > ma_vall(1)){sl=entry-maxSL*point;}
+             if(entry > (ma_vall(1)-10*point) && sl < ma_vall(1) && byask == 0){entry=ma_vall(1)-5*point;sl=entry-(maxSL*0.9)*point;}
              double tp=entry+minTP*point;//atr_val(1)*2.5;
               if(isFirst == 1){tp=entry+((minTP*2)*point);}
                             clearPending(2);      
-                        //if(entry > (ma_vall(1)-10*point) && sl < ma_vall(1)){}else{
+                        //else{
                         entryType[1]=1;entryP[1]=entry;entrySL[1]=sl;entryTP[1]=tp;entryExp[1]=expiration;entryCom[1]="E2";//}
                          block("buylimit EEE[2] "+string(entry+" "+time(1,PERIOD_CURRENT)),entry,entry,1,1,1,PERIOD_CURRENT,1,8);
             
          }else if(activeTrend == 2 && ((lastboxdown2+10*point) > lastboxdown && lastboxup >= lastboxdown2)  && lastboxup > (ma_vall(1)-20*point) && ( EEE[1] == 0 ||  EEE[1] > 0 && Eis[1] == 2)){//|| (lastboxdown > lastboxup2)
            usedbox=1;
            double entry=NormalizeDouble(lastboxup-per30,_Digits);
-             if(Bid > entry){entry = Bid+10*point;}
+           int bybid=0;
+             if(Bid > entry){entry = Bid+10*point;bybid=1;}
                  double sl=lastboxup;//0.0;
                  //if(lastboxup > ma_vall(1)){sl=lastboxup;}
                  if(lastboxup > ma_vall(1) && (sl-entry) < ((maxSL*0.8)*point)){sl=entry+((maxSL*0.8)*point);}//sl=lastboxup;}
                  if(entry < ma_vall(1)){sl=entry+maxSL*point;}
+                 if(entry < (ma_vall(1)+10*point) && sl > ma_vall(1) && bybid == 0){entry =ma_vall(1)+5*point;sl=entry+(maxSL*0.9)*point;}
                  double tp=entry-minTP*point;
                  if(isFirst == 1){tp=entry-((minTP*2)*point);}
                              clearPending(2);
                          
-                         if(entry < (ma_vall(1)+10*point) && sl > ma_vall(1)){}else{entryType[1]=2;entryP[1]=entry;entrySL[1]=sl;entryTP[1]=tp;entryExp[1]=expiration;entryCom[1]="E2";}
+                         //else{
+                         entryType[1]=2;entryP[1]=entry;entrySL[1]=sl;entryTP[1]=tp;entryExp[1]=expiration;entryCom[1]="E2";//}
                        block("selllimit EEE[2] "+string(entry+" "+time(1,PERIOD_CURRENT)),entry,entry,1,1,1,PERIOD_CURRENT,1,8);
          }
 
@@ -1140,10 +1170,9 @@ entires();
                if(OrderGetInteger(ORDER_MAGIC) != Magic) continue;
                
                //---
-               if(Epending[1] != orderTicket && OrderGetString(ORDER_COMMENT) == "E1"){Epending[1]=orderTicket;pendingEPosi[1]=1;
-               }else if(Epending[2] != orderTicket && OrderGetString(ORDER_COMMENT) == "E2"){Epending[2]=orderTicket;pendingEPosi[2]=1;
-               }else if(Epending[3] != orderTicket && OrderGetString(ORDER_COMMENT) == "E3"){Epending[3]=orderTicket;pendingEPosi[3]=1;adj_stop(Epending[3]);}
-         
+               for(int in=0;in < 10;in++){
+                    if(Epending[in] != orderTicket && OrderGetString(ORDER_COMMENT) == (string)("E"+in)){Epending[in]=orderTicket;pendingEPosi[in]=1;if(in == 3){adj_stop(Epending[in]);}}
+               }         
          }
       }
     
@@ -1198,18 +1227,14 @@ void clearPending(int type){
                if(OrderGetInteger(ORDER_MAGIC) != Magic) continue;
                
                //---
-              if(OrderGetString(ORDER_COMMENT) == "E1" && type == 1){
-                  trade.OrderDelete(orderTicket);
-                }else if(OrderGetString(ORDER_COMMENT) == "E2" && type == 2){
-                  trade.OrderDelete(orderTicket);
-                }else if(OrderGetString(ORDER_COMMENT) == "E3" && type == 3){
+              if(OrderGetString(ORDER_COMMENT) == (string)("E"+type)){
                   trade.OrderDelete(orderTicket);
                 }
                 /*if(type == 1 && OrderGetInteger(ORDER_TYPE) == ORDER_TYPE_BUY_LIMIT){
                   trade.OrderDelete(orderTicket);
                 }*/
          }
-         if(type == 1){Epending[1]=0;}else if(type == 2){Epending[2]=0;}else if(type == 3){Epending[3]=0;}
+         Epending[type]=0;
 }
 
 
@@ -1220,7 +1245,7 @@ void adj_stop(int ticket){
                
                //--- adjusting my solid.
                //Print(" open stop price current : "+OrderGetDouble(ORDER_PRICE_CURRENT)+ " : open stop price open : "+OrderGetDouble(ORDER_PRICE_OPEN));
-               if(OrderGetString(ORDER_COMMENT) == "EEE[3]"){//Print("fooooorund EEE[1] #",orderTicket);&& bagVal[22] > open(1)+100*point
+               if(OrderGetString(ORDER_COMMENT) == "E3"){//Print("fooooorund EEE[1] #",orderTicket);&& bagVal[22] > open(1)+100*point
                   if(OrderGetInteger(ORDER_TYPE) == ORDER_TYPE_SELL_STOP && ( ( (close(1)-5*point > high(2)) && open(1) > OrderGetDouble(ORDER_PRICE_OPEN)))){//&& close(2) > high(3) //(is_solid(2) && open(2) < Bid && open(2) > OrderGetDouble(ORDER_PRICE_OPEN)) || 
                      double ent = 0.0;
                      if( close(1)-5*point > high(2)){ent=low(1)-20*point;}//open(1)
@@ -1231,7 +1256,7 @@ void adj_stop(int ticket){
                      trade.OrderModify(ticket,ent,ent-(maxSL*point),ent+((minTP*2)*point),ORDER_TIME_SPECIFIED,TimeCurrent()+ExpireSec*2);
                   }
                }
-         }else{Epending[1]=0;}
+         }//else{Epending[3]=0;}
 }
 
 
