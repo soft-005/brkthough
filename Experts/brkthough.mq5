@@ -64,7 +64,7 @@ CGraphicalPanel panel;
 double emaShort[99999], emaLong[99999], emaShort1, emaLong1, atrValue, bbUpper[99999], bbLower[99999], bbMiddle[99999],bb1,lastDealP;
 int BB = 0,BB2 = 0,spike=barsToCheck,chgDealP=0;
 
-string entryCom[10],startdatee="",tgId = "-1002175469046", tgToken = "7452450238:AAGBEyQZo0rQCdWRqVo8sHuFZ96Y_HFjwKM";
+string entryCom[10],startdatee="",tgId = "-10029046", tgToken = "745238:AAGBEyQZo0rQC96Y_HFjwKM";
 ulong Epending[100],EEE[100];
 int Etrail[100],entryEPosi[100],pendingEPosi[100],ot=0,pt=0,Eis[100],Elog[100],sar,sar4hr,ma,atr,sarZone[100],
     trendOn=0,trendIs=0,barTotal,barDailyTotal,bar4Hour,avZ[5],volINST[4],volOverall=0,volINSTD[4],volOverallD=0,dayOverall=0,hourOverall=0,dailyTradeLog=0,firstOnHour=0,liveZone=0;
